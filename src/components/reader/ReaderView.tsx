@@ -127,6 +127,7 @@ export default function ReaderView({
   onParagraphSelect,
 }: Props) {
   const paragraphRefs = useRef<(HTMLParagraphElement | null)[]>([]);
+  const sentenceRefs = useRef<Record<string, HTMLSpanElement | null>>({});
 
   const surfaceStyles = getReaderSurfaceStyles(theme, backgroundTone);
   const highlightStyles = getHighlightStyles(highlightColor);
@@ -136,15 +137,49 @@ export default function ReaderView({
       return;
     }
 
+    const hasActiveSentence = currentSentenceIndex !== null;
+    const sentenceKey = hasActiveSentence
+      ? `${currentParagraphIndex}-${currentSentenceIndex}`
+      : null;
+
+    const activeSentence = sentenceKey
+      ? sentenceRefs.current[sentenceKey]
+      : null;
+
+    if (activeSentence) {
+      const rect = activeSentence.getBoundingClientRect();
+      const absoluteTop = window.scrollY + rect.top;
+
+      const targetTop = Math.max(
+        0,
+        absoluteTop - window.innerHeight * 0.3
+      );
+
+      window.scrollTo({
+        top: targetTop,
+        behavior: "smooth",
+      });
+
+      return;
+    }
+
     const activeParagraph = paragraphRefs.current[currentParagraphIndex];
 
     if (activeParagraph) {
-      activeParagraph.scrollIntoView({
+      const rect = activeParagraph.getBoundingClientRect();
+      const absoluteTop = window.scrollY + rect.top;
+
+      const targetTop = Math.max(
+        0,
+        absoluteTop - window.innerHeight * 0.3
+      );
+
+      window.scrollTo({
+        top: targetTop,
         behavior: "smooth",
-        block: "center",
       });
     }
-  }, [currentParagraphIndex]);
+  }, [currentParagraphIndex, currentSentenceIndex]);
 
   return (
     <div
@@ -162,26 +197,34 @@ export default function ReaderView({
         minHeight: "300px",
       }}
     >
-      {paragraphs.map((paragraph, index) => (
+      {paragraphs.map((paragraph, paragraphIndex) => (
         <div
           key={paragraph.id}
           style={{ marginBottom: `${paragraphSpacing}px` }}
         >
           <ReaderParagraph
             ref={(element) => {
-              paragraphRefs.current[index] = element;
+              paragraphRefs.current[paragraphIndex] = element;
             }}
             paragraph={paragraph}
-            isActive={currentParagraphIndex === index}
+            isActive={currentParagraphIndex === paragraphIndex}
             activeSentenceIndex={
-              currentParagraphIndex === index ? currentSentenceIndex : null
+              currentParagraphIndex === paragraphIndex
+                ? currentSentenceIndex
+                : null
             }
             paragraphBorderColor={highlightStyles.paragraphBorderColor}
             sentenceHighlightColor={highlightStyles.sentenceHighlightColor}
             textColor={surfaceStyles.textColor}
             onClick={
-              onParagraphSelect ? () => onParagraphSelect(index) : undefined
+              onParagraphSelect
+                ? () => onParagraphSelect(paragraphIndex)
+                : undefined
             }
+            registerSentenceRef={(sentenceIndex, element) => {
+              sentenceRefs.current[`${paragraphIndex}-${sentenceIndex}`] =
+                element;
+            }}
           />
         </div>
       ))}

@@ -9,6 +9,10 @@ type Props = {
   sentenceHighlightColor: string;
   textColor: string;
   onClick?: () => void;
+  registerSentenceRef?: (
+    sentenceIndex: number,
+    element: HTMLSpanElement | null
+  ) => void;
 };
 
 const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
@@ -21,6 +25,7 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
       sentenceHighlightColor,
       textColor,
       onClick,
+      registerSentenceRef,
     },
     ref
   ) => {
@@ -31,7 +36,9 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
         style={{
           padding: "10px",
           borderRadius: "10px",
-          border: isActive ? `2px solid ${paragraphBorderColor}` : "2px solid transparent",
+          border: isActive
+            ? `2px solid ${paragraphBorderColor}`
+            : "2px solid transparent",
           backgroundColor: "transparent",
           transition: "border-color 0.2s ease",
           marginBottom: "16px",
@@ -46,6 +53,7 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
           return (
             <span
               key={`${paragraph.id}-sentence-${index}`}
+              ref={(element) => registerSentenceRef?.(index, element)}
               style={{
                 backgroundColor: isActiveSentence
                   ? sentenceHighlightColor
