@@ -43,6 +43,23 @@ function getPdfWorkerUrl(): string {
   return "/pdfjs/pdf.worker.js";
 }
 
+function isIPhoneMobileMode(): boolean {
+  if (typeof navigator === "undefined" || typeof window === "undefined") {
+    return false;
+  }
+
+  const ua = navigator.userAgent || "";
+
+  const isIPhone =
+    /iPhone/.test(ua) ||
+    (/MacIntel/.test(navigator.platform) && navigator.maxTouchPoints > 1);
+
+  const isTouchDevice = window.matchMedia("(pointer: coarse)").matches;
+  const isNarrowViewport = window.innerWidth <= 900;
+
+  return isIPhone && isTouchDevice && isNarrowViewport;
+}
+
 function loadPdfJs(): Promise<PdfJsLike> {
   if (window.pdfjsLib) {
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = getPdfWorkerUrl();
@@ -140,6 +157,9 @@ async function extractText(
       if (pageText) {
         pages.push(pageText);
       }
+
+      // Helps mobile Safari breathe between pages.
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
 
     const finalText = pages.join("\n\n").trim();
@@ -165,9 +185,32 @@ export async function parsePdfFile(file: File): Promise<ParsedDocument> {
   const arrayBuffer = await file.arrayBuffer();
   const data = new Uint8Array(arrayBuffer);
 
+  const isIPhoneMobile = isIPhoneMobileMode();
+
   try {
+    // On iPhone mobile mode, skip worker entirely.
+    if (isIPhoneMobile) {
+      const text = await extractText(pdfjsLib, data, {
+        disableWorker: true,
+        useSystemFonts: false,
+        disableFontFace: true,
+        isOffscreenCanvasSupported: false,
+        cMapPacked: false,
+      });
+
+      return {
+        source: "pdf",
+        fileName: file.name,
+        text,
+      };
+    }
+
+    // Desktop / larger environments
     const text = await extractText(pdfjsLib, data, {
       disableWorker: false,
+      useSystemFonts: true,
+      disableFontFace: false,
+      isOffscreenCanvasSupported: false,
     });
 
     return {
@@ -175,9 +218,14 @@ export async function parsePdfFile(file: File): Promise<ParsedDocument> {
       fileName: file.name,
       text,
     };
-  } catch {
+  } catch (firstError) {
+    // Universal fallback
     const text = await extractText(pdfjsLib, data, {
       disableWorker: true,
+      useSystemFonts: false,
+      disableFontFace: true,
+      isOffscreenCanvasSupported: false,
+      cMapPacked: false,
     });
 
     return {
