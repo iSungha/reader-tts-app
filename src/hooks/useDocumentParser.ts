@@ -32,7 +32,9 @@ export function useDocumentParser() {
       }
 
       if (!result.text.trim()) {
-        throw new Error("The uploaded file was parsed, but no readable text was found.");
+        throw new Error(
+          "The uploaded file was parsed, but no readable text was found."
+        );
       }
 
       setStatus("idle");
