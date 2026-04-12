@@ -1,6 +1,9 @@
-import * as pdfjsLib from "pdfjs-dist";
+// @ts-ignore
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
+// @ts-ignore
+import pdfWorker from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
+
 import type { ParsedDocument } from "../../types/document";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
@@ -22,7 +25,6 @@ export async function parsePdfFile(file: File): Promise<ParsedDocument> {
 
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber);
-
     const textContent = await page.getTextContent();
 
     const rawParts = textContent.items.map((item) => {
@@ -41,7 +43,7 @@ export async function parsePdfFile(file: File): Promise<ParsedDocument> {
 
   if (!finalText) {
     throw new Error(
-      "This PDF does not appear to contain selectable text. It may be image-based/scanned, encrypted, or use unsupported font encoding."
+      "This PDF has no extractable text (likely scanned or unsupported)."
     );
   }
 
