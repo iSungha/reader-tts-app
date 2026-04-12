@@ -64,6 +64,12 @@ export default function UploadPanel({ onApply }: Props) {
         <strong>Parser status:</strong> {status}
       </p>
 
+      {status === "loading" ? (
+        <p style={{ color: "#93c5fd" }}>
+          Reading file...
+        </p>
+      ) : null}
+
       {error ? (
         <p style={{ color: "#f87171" }}>
           <strong>Error:</strong> {error}
