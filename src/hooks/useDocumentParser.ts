@@ -17,25 +17,26 @@ export function useDocumentParser() {
 
       const extension = file.name.split(".").pop()?.toLowerCase();
 
+      let result: ParsedDocument | null = null;
+
       if (extension === "txt") {
-        const result = await parseTextFile(file);
-        setStatus("idle");
-        return result;
+        result = await parseTextFile(file);
+      } else if (extension === "docx") {
+        result = await parseDocxFile(file);
+      } else if (extension === "pdf") {
+        result = await parsePdfFile(file);
+      } else {
+        throw new Error(
+          "Unsupported file type. Please upload a .txt, .pdf, or .docx file."
+        );
       }
 
-      if (extension === "docx") {
-        const result = await parseDocxFile(file);
-        setStatus("idle");
-        return result;
+      if (!result.text.trim()) {
+        throw new Error("The uploaded file was parsed, but no readable text was found.");
       }
 
-      if (extension === "pdf") {
-        const result = await parsePdfFile(file);
-        setStatus("idle");
-        return result;
-      }
-
-      throw new Error("Unsupported file type. Please upload a .txt, .pdf, or .docx file.");
+      setStatus("idle");
+      return result;
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to parse file.";
