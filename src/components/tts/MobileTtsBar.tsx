@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { VoiceOption, SpeechStatus } from "../../types/tts";
 import type {
   HighlightColorOption,
@@ -116,12 +116,6 @@ export default function MobileTtsBar({
 
   const currentDisplay =
     currentParagraphIndex !== null ? currentParagraphIndex + 1 : "-";
-
-  useEffect(() => {
-    if (status === "speaking" || status === "paused") {
-      setIsExpanded(true);
-    }
-  }, [status]);
 
   return (
     <div
