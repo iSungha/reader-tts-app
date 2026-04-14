@@ -9,11 +9,18 @@ export function splitIntoParagraphs(raw: string): Paragraph[] {
   return parts.map((text, index) => ({
     id: `p-${index}`,
     text,
-    sentences: splitIntoSentences(text),
+    sentences: splitIntoReadableUnits(text),
   }));
 }
 
-function splitIntoSentences(text: string): string[] {
+function splitIntoReadableUnits(text: string): string[] {
+  if (text.includes("\n")) {
+    return text
+      .split("\n")
+      .map((line) => line.replace(/\s+$/g, ""))
+      .filter((line) => line.trim().length > 0);
+  }
+
   return (
     text.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((s) => s.trim()) || [text]
   );

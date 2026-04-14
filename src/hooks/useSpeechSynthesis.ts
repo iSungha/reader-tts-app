@@ -9,6 +9,8 @@ type UseSpeechSynthesisProps = {
   rate: number;
 };
 
+const PARAGRAPH_PAUSE_MS = 450;
+
 function getSentenceIndexFromCharIndex(
   sentences: string[],
   charIndex: number
@@ -44,6 +46,7 @@ export function useSpeechSynthesis({
   const isManualStopRef = useRef(false);
   const previousVoiceIdRef = useRef(selectedVoiceId);
   const previousRateRef = useRef(rate);
+  const paragraphPauseTimeoutRef = useRef<number | null>(null);
 
   const selectedVoice = useMemo(() => {
     return voices.find((voice) => voice.id === selectedVoiceId)?.voice ?? null;
@@ -55,9 +58,20 @@ export function useSpeechSynthesis({
 
   useEffect(() => {
     return () => {
+      if (paragraphPauseTimeoutRef.current !== null) {
+        window.clearTimeout(paragraphPauseTimeoutRef.current);
+      }
+
       window.speechSynthesis.cancel();
     };
   }, []);
+
+  const clearParagraphPauseTimeout = () => {
+    if (paragraphPauseTimeoutRef.current !== null) {
+      window.clearTimeout(paragraphPauseTimeoutRef.current);
+      paragraphPauseTimeoutRef.current = null;
+    }
+  };
 
   const speakParagraphAtIndex = (index: number) => {
     if (index >= paragraphs.length) {
@@ -104,10 +118,19 @@ export function useSpeechSynthesis({
         return;
       }
 
-      speakParagraphAtIndex(index + 1);
+      clearParagraphPauseTimeout();
+
+      paragraphPauseTimeoutRef.current = window.setTimeout(() => {
+        if (isManualStopRef.current) {
+          return;
+        }
+
+        speakParagraphAtIndex(index + 1);
+      }, PARAGRAPH_PAUSE_MS);
     };
 
     utterance.onerror = () => {
+      clearParagraphPauseTimeout();
       setStatus("idle");
       setCurrentParagraphIndex(null);
       setCurrentSentenceIndex(null);
@@ -129,6 +152,7 @@ export function useSpeechSynthesis({
       return;
     }
 
+    clearParagraphPauseTimeout();
     isManualStopRef.current = false;
     window.speechSynthesis.cancel();
     setCurrentParagraphIndex(startIndex);
@@ -162,6 +186,8 @@ export function useSpeechSynthesis({
       return;
     }
 
+    clearParagraphPauseTimeout();
+
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.pause();
       setStatus("paused");
@@ -173,6 +199,7 @@ export function useSpeechSynthesis({
       return;
     }
 
+    clearParagraphPauseTimeout();
     isManualStopRef.current = true;
     window.speechSynthesis.cancel();
     setStatus("idle");

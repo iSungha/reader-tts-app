@@ -2,6 +2,9 @@ import type { ParsedDocument } from "../../types/document";
 
 type PdfTextItem = {
   str?: string;
+  transform?: number[];
+  width?: number;
+  height?: number;
 };
 
 type PdfPage = {
@@ -32,6 +35,19 @@ declare global {
     pdfjsLib?: PdfJsLike;
   }
 }
+
+type PositionedTextItem = {
+  text: string;
+  x: number;
+  y: number;
+  height: number;
+};
+
+type TextLine = {
+  y: number;
+  avgHeight: number;
+  parts: PositionedTextItem[];
+};
 
 let pdfJsLoadPromise: Promise<PdfJsLike> | null = null;
 
@@ -119,16 +135,164 @@ function loadPdfJs(): Promise<PdfJsLike> {
   return pdfJsLoadPromise;
 }
 
-function getTextFromItems(items: unknown[] | ArrayLike<unknown>): string {
+function normalizeItems(items: unknown[] | ArrayLike<unknown>): PositionedTextItem[] {
   const normalizedItems = Array.isArray(items) ? items : Array.from(items);
 
   return normalizedItems
     .map((item) => {
       const typedItem = item as PdfTextItem;
-      return typedItem.str ?? "";
+      const text = (typedItem.str ?? "").trim();
+
+      if (!text) {
+        return null;
+      }
+
+      const transform = typedItem.transform ?? [];
+      const x = typeof transform[4] === "number" ? transform[4] : 0;
+      const y = typeof transform[5] === "number" ? transform[5] : 0;
+      const height =
+        typeof typedItem.height === "number" && typedItem.height > 0
+          ? typedItem.height
+          : typeof transform[0] === "number"
+          ? Math.abs(transform[0])
+          : 12;
+
+      return {
+        text,
+        x,
+        y,
+        height,
+      };
     })
-    .join(" ")
-    .replace(/\s+/g, " ")
+    .filter((item): item is PositionedTextItem => item !== null);
+}
+
+function groupItemsIntoLines(items: PositionedTextItem[]): TextLine[] {
+  const sorted = [...items].sort((a, b) => {
+    if (Math.abs(b.y - a.y) > 1) {
+      return b.y - a.y;
+    }
+
+    return a.x - b.x;
+  });
+
+  const lines: TextLine[] = [];
+  const yTolerance = 3;
+
+  for (const item of sorted) {
+    const existingLine = lines.find((line) => Math.abs(line.y - item.y) <= yTolerance);
+
+    if (existingLine) {
+      existingLine.parts.push(item);
+
+      const totalHeight =
+        existingLine.parts.reduce((sum, part) => sum + part.height, 0) /
+        existingLine.parts.length;
+
+      existingLine.avgHeight = totalHeight;
+      existingLine.y = existingLine.parts.reduce((sum, part) => sum + part.y, 0) / existingLine.parts.length;
+    } else {
+      lines.push({
+        y: item.y,
+        avgHeight: item.height,
+        parts: [item],
+      });
+    }
+  }
+
+  return lines
+    .map((line) => ({
+      ...line,
+      parts: [...line.parts].sort((a, b) => a.x - b.x),
+    }))
+    .sort((a, b) => b.y - a.y);
+}
+
+function joinLineParts(parts: PositionedTextItem[]): string {
+  if (parts.length === 0) {
+    return "";
+  }
+
+  let result = parts[0].text;
+  let previous = parts[0];
+
+  for (let i = 1; i < parts.length; i += 1) {
+    const current = parts[i];
+    const estimatedPreviousWidth = previous.text.length * Math.max(previous.height * 0.45, 4);
+    const previousRightEdge = previous.x + estimatedPreviousWidth;
+    const gap = current.x - previousRightEdge;
+
+    const shouldAddSpace =
+      gap > Math.max(previous.height * 0.15, 2) &&
+      !result.endsWith("-") &&
+      !current.text.startsWith(",") &&
+      !current.text.startsWith(".") &&
+      !current.text.startsWith(";") &&
+      !current.text.startsWith(":") &&
+      !current.text.startsWith("!") &&
+      !current.text.startsWith("?");
+
+    result += shouldAddSpace ? ` ${current.text}` : current.text;
+    previous = current;
+  }
+
+  return result.replace(/\s+/g, " ").trim();
+}
+
+function buildStructuredPageText(items: unknown[] | ArrayLike<unknown>): string {
+  const positionedItems = normalizeItems(items);
+
+  if (positionedItems.length === 0) {
+    return "";
+  }
+
+  const lines = groupItemsIntoLines(positionedItems);
+
+  if (lines.length === 0) {
+    return "";
+  }
+
+  const lineTexts = lines.map((line) => ({
+    text: joinLineParts(line.parts),
+    y: line.y,
+    avgHeight: line.avgHeight,
+  }));
+
+  const gaps: number[] = [];
+
+  for (let i = 1; i < lineTexts.length; i += 1) {
+    gaps.push(Math.abs(lineTexts[i - 1].y - lineTexts[i].y));
+  }
+
+  const averageGap =
+    gaps.length > 0 ? gaps.reduce((sum, gap) => sum + gap, 0) / gaps.length : 0;
+
+  const output: string[] = [];
+
+  for (let i = 0; i < lineTexts.length; i += 1) {
+    const currentLine = lineTexts[i];
+    output.push(currentLine.text);
+
+    const nextLine = lineTexts[i + 1];
+
+    if (!nextLine) {
+      continue;
+    }
+
+    const verticalGap = Math.abs(currentLine.y - nextLine.y);
+    const paragraphBreakThreshold = Math.max(
+      currentLine.avgHeight * 1.25,
+      averageGap * 1.35
+    );
+
+    if (verticalGap > paragraphBreakThreshold) {
+      output.push("");
+    }
+  }
+
+  return output
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -152,13 +316,12 @@ async function extractText(
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const textContent = await page.getTextContent();
-      const pageText = getTextFromItems(textContent.items);
+      const pageText = buildStructuredPageText(textContent.items);
 
       if (pageText) {
         pages.push(pageText);
       }
 
-      // Helps mobile Safari breathe between pages.
       await new Promise((resolve) => setTimeout(resolve, 0));
     }
 
@@ -188,7 +351,6 @@ export async function parsePdfFile(file: File): Promise<ParsedDocument> {
   const isIPhoneMobile = isIPhoneMobileMode();
 
   try {
-    // On iPhone mobile mode, skip worker entirely.
     if (isIPhoneMobile) {
       const text = await extractText(pdfjsLib, data, {
         disableWorker: true,
@@ -205,7 +367,6 @@ export async function parsePdfFile(file: File): Promise<ParsedDocument> {
       };
     }
 
-    // Desktop / larger environments
     const text = await extractText(pdfjsLib, data, {
       disableWorker: false,
       useSystemFonts: true,
@@ -218,8 +379,7 @@ export async function parsePdfFile(file: File): Promise<ParsedDocument> {
       fileName: file.name,
       text,
     };
-  } catch (firstError) {
-    // Universal fallback
+  } catch {
     const text = await extractText(pdfjsLib, data, {
       disableWorker: true,
       useSystemFonts: false,
