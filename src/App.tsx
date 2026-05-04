@@ -107,7 +107,9 @@ export default function App() {
   const [selectedVoiceId, setSelectedVoiceId] = useState("");
   const [rate, setRate] = useState(1);
   const [sourceText, setSourceText] = useState("");
-  const [savedParagraphIndex, setSavedParagraphIndex] = useState<number | null>(null);
+  const [savedParagraphIndex, setSavedParagraphIndex] = useState<number | null>(
+    null
+  );
   const [jumpParagraphInput, setJumpParagraphInput] = useState("");
 
   const settings = useReaderSettings();
@@ -141,7 +143,9 @@ export default function App() {
       return "No voice selected";
     }
 
-    return voices.find((voice) => voice.id === selectedVoiceId)?.name ?? "Voice";
+    return (
+      voices.find((voice) => voice.id === selectedVoiceId)?.name ?? "Voice"
+    );
   }, [voices, selectedVoiceId]);
 
   const documentKey = useMemo(() => {
@@ -159,16 +163,21 @@ export default function App() {
     const nextDocumentKey = createDocumentKey(text);
     const previousSavedIndex = loadReadingProgress(nextDocumentKey);
 
+    const safeSavedIndex =
+      previousSavedIndex !== null &&
+      previousSavedIndex >= 0 &&
+      previousSavedIndex < parsedParagraphs.length
+        ? previousSavedIndex
+        : null;
+
     setSourceText(text);
     setParagraphs(parsedParagraphs);
-    setSavedParagraphIndex(previousSavedIndex);
+    setSavedParagraphIndex(safeSavedIndex);
     setJumpParagraphInput("");
 
-    if (previousSavedIndex !== null && previousSavedIndex < parsedParagraphs.length) {
-      setCurrentParagraph(previousSavedIndex);
-    } else {
-      setCurrentParagraph(null);
-    }
+    // Important: do NOT auto-restore current paragraph on load.
+    // This avoids the bad restart/jump loop.
+    setCurrentParagraph(null);
   };
 
   useEffect(() => {
@@ -211,8 +220,10 @@ export default function App() {
       return;
     }
 
+    stop();
     clearReadingProgress(documentKey);
     setSavedParagraphIndex(null);
+    setJumpParagraphInput("");
     setCurrentParagraph(null);
   };
 
@@ -229,7 +240,19 @@ export default function App() {
       return;
     }
 
-    playFromParagraph(targetIndex);
+    // Important: jump only, do not autoplay.
+    // This avoids the crash/reload path you were seeing.
+    stop();
+    setCurrentParagraph(targetIndex);
+  };
+
+  const handleJumpInputKeyDown = (
+    event: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      handleJumpToParagraph();
+    }
   };
 
   return (
@@ -259,7 +282,8 @@ export default function App() {
         >
           <h1 style={{ marginTop: 0, marginBottom: "8px" }}>Reader TTS App</h1>
           <p style={{ margin: 0, color: pageColors.mutedColor }}>
-            PDF / DOCX / TXT / pasted text • built-in browser voices • sentence highlight • auto-scroll
+            PDF / DOCX / TXT / pasted text • built-in browser voices • sentence
+            highlight • auto-scroll
           </p>
         </div>
 
@@ -328,6 +352,7 @@ export default function App() {
                   max={paragraphs.length || 1}
                   value={jumpParagraphInput}
                   onChange={(e) => setJumpParagraphInput(e.target.value)}
+                  onKeyDown={handleJumpInputKeyDown}
                   placeholder="Paragraph number"
                   style={{
                     border: "1px solid #4b5563",
@@ -345,7 +370,7 @@ export default function App() {
                   style={panelButtonStyle}
                   disabled={paragraphs.length === 0}
                 >
-                  Jump and play
+                  Jump
                 </button>
               </div>
 
@@ -390,7 +415,9 @@ export default function App() {
                     Saved progress found at paragraph {savedParagraphIndex + 1}.
                   </p>
 
-                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                  <div
+                    style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}
+                  >
                     <button
                       type="button"
                       onClick={handleResumeSavedProgress}
