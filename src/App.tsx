@@ -108,6 +108,7 @@ export default function App() {
   const [rate, setRate] = useState(1);
   const [sourceText, setSourceText] = useState("");
   const [savedParagraphIndex, setSavedParagraphIndex] = useState<number | null>(null);
+  const [jumpParagraphInput, setJumpParagraphInput] = useState("");
 
   const settings = useReaderSettings();
   const voices = useVoices();
@@ -161,6 +162,7 @@ export default function App() {
     setSourceText(text);
     setParagraphs(parsedParagraphs);
     setSavedParagraphIndex(previousSavedIndex);
+    setJumpParagraphInput("");
 
     if (previousSavedIndex !== null && previousSavedIndex < parsedParagraphs.length) {
       setCurrentParagraph(previousSavedIndex);
@@ -212,6 +214,22 @@ export default function App() {
     clearReadingProgress(documentKey);
     setSavedParagraphIndex(null);
     setCurrentParagraph(null);
+  };
+
+  const handleJumpToParagraph = () => {
+    const parsedValue = Number(jumpParagraphInput);
+
+    if (!Number.isInteger(parsedValue)) {
+      return;
+    }
+
+    const targetIndex = parsedValue - 1;
+
+    if (targetIndex < 0 || targetIndex >= paragraphs.length) {
+      return;
+    }
+
+    playFromParagraph(targetIndex);
   };
 
   return (
@@ -289,6 +307,51 @@ export default function App() {
                 onPause={pause}
                 onStop={stop}
               />
+            </SectionCard>
+
+            <SectionCard
+              title="Jump to paragraph"
+              subtitle="Type a paragraph number and jump there"
+              defaultOpen={true}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
+                <input
+                  type="number"
+                  min={1}
+                  max={paragraphs.length || 1}
+                  value={jumpParagraphInput}
+                  onChange={(e) => setJumpParagraphInput(e.target.value)}
+                  placeholder="Paragraph number"
+                  style={{
+                    border: "1px solid #4b5563",
+                    backgroundColor: "#111827",
+                    color: "#f9fafb",
+                    borderRadius: "8px",
+                    padding: "10px 12px",
+                    width: "180px",
+                  }}
+                />
+
+                <button
+                  type="button"
+                  onClick={handleJumpToParagraph}
+                  style={panelButtonStyle}
+                  disabled={paragraphs.length === 0}
+                >
+                  Jump and play
+                </button>
+              </div>
+
+              <p style={{ marginTop: "10px", color: pageColors.mutedColor }}>
+                Total paragraphs: {paragraphs.length}
+              </p>
             </SectionCard>
 
             <SectionCard

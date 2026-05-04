@@ -9,7 +9,7 @@ type UseSpeechSynthesisProps = {
   rate: number;
 };
 
-const PARAGRAPH_PAUSE_MS = 450;
+const PARAGRAPH_PAUSE_MS = 0;
 
 function getSentenceIndexFromCharIndex(
   sentences: string[],
