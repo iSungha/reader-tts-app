@@ -50,8 +50,23 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
           whiteSpace: "pre-wrap",
         }}
       >
-        {paragraph.sentences.map((sentence, index) => {
-          const isActiveSentence = isActive && activeSentenceIndex === index;
+        {paragraph.renderUnits.map((unit, index) => {
+          const isActiveUnit = isActive && activeSentenceIndex === index;
+
+          const content = (
+            <>
+              {unit.parts.map((part, partIndex) => (
+                <span
+                  key={`${paragraph.id}-unit-${index}-part-${partIndex}`}
+                  style={{
+                    fontWeight: part.bold ? 700 : 400,
+                  }}
+                >
+                  {part.text}
+                </span>
+              ))}
+            </>
+          );
 
           if (isLineBasedParagraph) {
             return (
@@ -62,16 +77,16 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
                   display: "block",
                   width: "fit-content",
                   maxWidth: "100%",
-                  backgroundColor: isActiveSentence
+                  backgroundColor: isActiveUnit
                     ? sentenceHighlightColor
                     : "transparent",
                   borderRadius: "4px",
-                  padding: isActiveSentence ? "2px 4px" : "0",
+                  padding: isActiveUnit ? "2px 4px" : "0",
                   transition: "background-color 0.2s ease",
                   whiteSpace: "pre-wrap",
                 }}
               >
-                {sentence}
+                {content}
               </span>
             );
           }
@@ -81,17 +96,17 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
               key={`${paragraph.id}-sentence-${index}`}
               ref={(element) => registerSentenceRef?.(index, element)}
               style={{
-                backgroundColor: isActiveSentence
+                backgroundColor: isActiveUnit
                   ? sentenceHighlightColor
                   : "transparent",
                 borderRadius: "4px",
-                padding: isActiveSentence ? "2px 4px" : "0",
+                padding: isActiveUnit ? "2px 4px" : "0",
                 transition: "background-color 0.2s ease",
                 whiteSpace: "pre-wrap",
               }}
             >
-              {sentence}
-              {index < paragraph.sentences.length - 1 ? " " : ""}
+              {content}
+              {index < paragraph.renderUnits.length - 1 ? " " : ""}
             </span>
           );
         })}
