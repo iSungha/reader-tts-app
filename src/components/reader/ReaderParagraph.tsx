@@ -5,8 +5,8 @@ type Props = {
   paragraph: Paragraph;
   isActive: boolean;
   activeSentenceIndex: number | null;
-  paragraphBorderColor: string;
-  sentenceHighlightColor: string;
+  activeUnitBorderColor: string;
+  activeUnitHighlightColor: string;
   textColor: string;
   onClick?: () => void;
   registerSentenceRef?: (
@@ -21,8 +21,8 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
       paragraph,
       isActive,
       activeSentenceIndex,
-      paragraphBorderColor,
-      sentenceHighlightColor,
+      activeUnitBorderColor,
+      activeUnitHighlightColor,
       textColor,
       onClick,
       registerSentenceRef,
@@ -36,13 +36,10 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
         ref={ref}
         onClick={onClick}
         style={{
-          padding: "10px",
+          padding: "10px 0",
           borderRadius: "10px",
-          border: isActive
-            ? `2px solid ${paragraphBorderColor}`
-            : "2px solid transparent",
+          border: "none",
           backgroundColor: "transparent",
-          transition: "border-color 0.2s ease",
           marginBottom: "16px",
           lineHeight: 1.7,
           color: textColor,
@@ -78,11 +75,15 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
                   width: "fit-content",
                   maxWidth: "100%",
                   backgroundColor: isActiveUnit
-                    ? sentenceHighlightColor
+                    ? activeUnitHighlightColor
                     : "transparent",
-                  borderRadius: "4px",
-                  padding: isActiveUnit ? "2px 4px" : "0",
-                  transition: "background-color 0.2s ease",
+                  border: isActiveUnit
+                    ? `2px solid ${activeUnitBorderColor}`
+                    : "2px solid transparent",
+                  borderRadius: "6px",
+                  padding: isActiveUnit ? "2px 6px" : "2px 0",
+                  transition:
+                    "background-color 0.2s ease, border-color 0.2s ease",
                   whiteSpace: "pre-wrap",
                 }}
               >
@@ -97,11 +98,15 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
               ref={(element) => registerSentenceRef?.(index, element)}
               style={{
                 backgroundColor: isActiveUnit
-                  ? sentenceHighlightColor
+                  ? activeUnitHighlightColor
                   : "transparent",
-                borderRadius: "4px",
-                padding: isActiveUnit ? "2px 4px" : "0",
-                transition: "background-color 0.2s ease",
+                border: isActiveUnit
+                  ? `2px solid ${activeUnitBorderColor}`
+                  : "2px solid transparent",
+                borderRadius: "6px",
+                padding: isActiveUnit ? "2px 6px" : "2px 0",
+                transition:
+                  "background-color 0.2s ease, border-color 0.2s ease",
                 whiteSpace: "pre-wrap",
               }}
             >

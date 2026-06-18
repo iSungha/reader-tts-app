@@ -80,34 +80,34 @@ function getHighlightStyles(color: HighlightColorOption) {
   switch (color) {
     case "blue":
       return {
-        paragraphBorderColor: "#60a5fa",
-        sentenceHighlightColor: "#93c5fd",
+        activeUnitBorderColor: "#60a5fa",
+        activeUnitHighlightColor: "#93c5fd",
       };
     case "purple":
       return {
-        paragraphBorderColor: "#a78bfa",
-        sentenceHighlightColor: "#c4b5fd",
+        activeUnitBorderColor: "#a78bfa",
+        activeUnitHighlightColor: "#c4b5fd",
       };
     case "orange":
       return {
-        paragraphBorderColor: "#fb923c",
-        sentenceHighlightColor: "#fdba74",
+        activeUnitBorderColor: "#fb923c",
+        activeUnitHighlightColor: "#fdba74",
       };
     case "pink":
       return {
-        paragraphBorderColor: "#f472b6",
-        sentenceHighlightColor: "#f9a8d4",
+        activeUnitBorderColor: "#f472b6",
+        activeUnitHighlightColor: "#f9a8d4",
       };
     case "gray":
       return {
-        paragraphBorderColor: "#94a3b8",
-        sentenceHighlightColor: "#cbd5e1",
+        activeUnitBorderColor: "#94a3b8",
+        activeUnitHighlightColor: "#cbd5e1",
       };
     case "green":
     default:
       return {
-        paragraphBorderColor: "#4ade80",
-        sentenceHighlightColor: "#86efac",
+        activeUnitBorderColor: "#4ade80",
+        activeUnitHighlightColor: "#86efac",
       };
   }
 }
@@ -150,10 +150,7 @@ export default function ReaderView({
       const rect = activeSentence.getBoundingClientRect();
       const absoluteTop = window.scrollY + rect.top;
 
-      const targetTop = Math.max(
-        0,
-        absoluteTop - window.innerHeight * 0.3
-      );
+      const targetTop = Math.max(0, absoluteTop - window.innerHeight * 0.3);
 
       window.scrollTo({
         top: targetTop,
@@ -169,10 +166,7 @@ export default function ReaderView({
       const rect = activeParagraph.getBoundingClientRect();
       const absoluteTop = window.scrollY + rect.top;
 
-      const targetTop = Math.max(
-        0,
-        absoluteTop - window.innerHeight * 0.3
-      );
+      const targetTop = Math.max(0, absoluteTop - window.innerHeight * 0.3);
 
       window.scrollTo({
         top: targetTop,
@@ -213,8 +207,8 @@ export default function ReaderView({
                 ? currentSentenceIndex
                 : null
             }
-            paragraphBorderColor={highlightStyles.paragraphBorderColor}
-            sentenceHighlightColor={highlightStyles.sentenceHighlightColor}
+            activeUnitBorderColor={highlightStyles.activeUnitBorderColor}
+            activeUnitHighlightColor={highlightStyles.activeUnitHighlightColor}
             textColor={surfaceStyles.textColor}
             onClick={
               onParagraphSelect
