@@ -6,10 +6,10 @@ type RawParagraph = {
 };
 
 export function splitIntoParagraphs(raw: string): Paragraph[] {
-  const source = raw ?? "";
+  const source = (raw ?? "").replace(/\r\n?/g, "\n");
 
-  const rawParagraphs = containsHtml(source)
-    ? extractParagraphsFromHtml(source)
+  const rawParagraphs = containsBlockHtml(source)
+    ? extractParagraphsFromBlockHtml(source)
     : extractParagraphsFromPlainText(source);
 
   return rawParagraphs
@@ -26,7 +26,13 @@ export function splitIntoParagraphs(raw: string): Paragraph[] {
     });
 }
 
-function containsHtml(value: string): boolean {
+function containsBlockHtml(value: string): boolean {
+  return /<\/?(p|div|br|h1|h2|h3|h4|h5|h6|li|ul|ol|blockquote|section|article|body|html)\b/i.test(
+    value
+  );
+}
+
+function containsAnyHtml(value: string): boolean {
   return /<\/?[a-z][\s\S]*>/i.test(value);
 }
 
@@ -35,13 +41,21 @@ function extractParagraphsFromPlainText(raw: string): RawParagraph[] {
     .split(/\n\s*\n+/)
     .map((paragraphText) => paragraphText.trim())
     .filter(Boolean)
-    .map((paragraphText) => ({
-      text: paragraphText,
-      parts: [{ text: paragraphText }],
-    }));
+    .map((paragraphText) => {
+      const parts = containsAnyHtml(paragraphText)
+        ? normalizeParts(parseInlineHtmlFragment(paragraphText))
+        : [{ text: paragraphText }];
+
+      const text = partsToText(parts).trim();
+
+      return {
+        text,
+        parts,
+      };
+    });
 }
 
-function extractParagraphsFromHtml(raw: string): RawParagraph[] {
+function extractParagraphsFromBlockHtml(raw: string): RawParagraph[] {
   if (typeof window === "undefined") {
     return extractParagraphsFromPlainText(stripHtml(raw));
   }
@@ -69,10 +83,12 @@ function extractParagraphsFromHtml(raw: string): RawParagraph[] {
 
   for (const node of Array.from(body.childNodes)) {
     if (node.nodeType === Node.TEXT_NODE) {
-      const text = node.textContent?.trim();
-      if (text) {
+      const text = cleanArtifactText(node.textContent ?? "");
+
+      if (text.trim()) {
         looseTextBuffer.push({ text });
       }
+
       continue;
     }
 
@@ -83,7 +99,18 @@ function extractParagraphsFromHtml(raw: string): RawParagraph[] {
     const element = node as HTMLElement;
     const tag = element.tagName.toLowerCase();
 
-    if (tag === "p" || tag === "div" || tag === "blockquote" || tag === "h1" || tag === "h2" || tag === "h3") {
+    if (
+      tag === "p" ||
+      tag === "div" ||
+      tag === "blockquote" ||
+      tag === "h1" ||
+      tag === "h2" ||
+      tag === "h3" ||
+      tag === "h4" ||
+      tag === "h5" ||
+      tag === "h6" ||
+      tag === "li"
+    ) {
       flushLooseBuffer();
 
       const parts = normalizeParts(extractInlineParts(element));
@@ -121,9 +148,25 @@ function extractParagraphsFromHtml(raw: string): RawParagraph[] {
   return paragraphs;
 }
 
+function parseInlineHtmlFragment(fragment: string): InlineTextPart[] {
+  if (typeof window === "undefined") {
+    return [{ text: stripHtml(fragment) }];
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(`<div>${fragment}</div>`, "text/html");
+  const root = doc.body.firstElementChild;
+
+  if (!root) {
+    return [{ text: stripHtml(fragment) }];
+  }
+
+  return extractInlineParts(root);
+}
+
 function extractInlineParts(node: Node, inheritedBold = false): InlineTextPart[] {
   if (node.nodeType === Node.TEXT_NODE) {
-    const text = normalizeWhitespace(node.textContent ?? "");
+    const text = cleanArtifactText(node.textContent ?? "");
 
     if (!text) {
       return [];
@@ -159,14 +202,18 @@ function extractInlineParts(node: Node, inheritedBold = false): InlineTextPart[]
   return parts;
 }
 
-function normalizeWhitespace(text: string): string {
-  return text.replace(/\s+/g, " ");
+function cleanArtifactText(text: string): string {
+  return text
+    .replace(/\r\n?/g, "\n")
+    .replace(/\\1/g, "")
+    .replace(/\u0001/g, "")
+    .replace(/[ \t\f\v]+/g, " ");
 }
 
 function normalizeParts(parts: InlineTextPart[]): InlineTextPart[] {
   const cleaned = parts
     .map((part) => ({
-      text: part.text,
+      text: cleanArtifactText(part.text),
       bold: part.bold,
     }))
     .filter((part) => part.text.length > 0);
