@@ -14,6 +14,10 @@ Folio is a mobile-first reader that turns your own documents and pasted passages
 | :---: | :---: | :---: |
 | <img src="docs/screenshots/folio-home-mobile.jpg" alt="Folio mobile landing page" width="230"> | <img src="docs/screenshots/folio-reader-mobile.jpg" alt="Mobile reader showing a sample passage" width="230"> | <img src="docs/screenshots/folio-sample-player-mobile.jpg" alt="Sample voice and speed controls" width="230"> |
 
+| Library with a book folder | Book folder with chapter files |
+| :---: | :---: |
+| <img src="docs/screenshots/folio-library-mobile.jpg" alt="Mobile Library showing a book folder with ten files" width="230"> | <img src="docs/screenshots/folio-book-folder-mobile.jpg" alt="Mobile book folder showing chapter files and progress" width="230"> |
+
 ## The experience
 
 | | |
