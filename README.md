@@ -2,7 +2,7 @@
 
 ### Read when you want. Listen when you can’t.
 
-Folio is a mobile-first reader that turns your own documents and pasted passages into a calmer reading and listening experience. Try the speech preview on the landing page, start a standalone **Quick Listen**, or keep a longer work organized in your **Library**.
+Folio turns your own documents and pasted passages into a calmer reading and listening experience. Try the speech preview on the landing page, start a standalone **Quick Listen**, or keep a longer work organized in your **Library**.
 
 **[Open the live app](https://reader-tts-app.vercel.app/)** · **[View the source](https://github.com/iSungha/reader-tts-app)**
 
@@ -29,7 +29,7 @@ Folio is a mobile-first reader that turns your own documents and pasted passages
 | **Make listening yours** | Choose an available browser voice and playback speed, including 1.2×. Skip paragraphs, pause, resume, or stop from the expandable player. |
 | **Settle in to read** | Adjust text size, line spacing, paragraph spacing, alignment, and reading width. “Tap to play” is off by default so touching the page does not unexpectedly move playback. |
 
-The interface is designed around a phone-sized screen, with a compact player that keeps the current read close at hand. Home and Library remain in the header, while reader back actions and playback controls are reachable near the bottom on mobile.
+The layout adapts across screen sizes, with a compact player that keeps the current read close at hand. Home and Library remain in the header; reader back actions and playback controls stay within reach on smaller screens.
 
 ## Run locally
 
