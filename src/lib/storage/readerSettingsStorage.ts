@@ -74,7 +74,7 @@ function isValidTextAlign(value: unknown): value is TextAlignOption {
 }
 
 function isValidTheme(value: unknown): value is ReaderThemeOption {
-  return value === "light" || value === "dark";
+  return value === "light" || value === "dark" || value === "sepia";
 }
 
 function isValidBackgroundTone(value: unknown): value is ThemeBackgroundOption {

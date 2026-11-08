@@ -5,7 +5,7 @@ import {
 } from "../lib/storage/readerSettingsStorage";
 
 export type TextAlignOption = "left" | "center" | "right" | "justify";
-export type ReaderThemeOption = "light" | "dark";
+export type ReaderThemeOption = "light" | "dark" | "sepia";
 export type ThemeBackgroundOption =
   | "black"
   | "gray"
@@ -34,7 +34,7 @@ export function useReaderSettings() {
     storedSettings?.textAlign ?? "left"
   );
   const [theme, setTheme] = useState<ReaderThemeOption>(
-    storedSettings?.theme ?? "light"
+    storedSettings?.theme ?? "dark"
   );
   const [backgroundTone, setBackgroundTone] = useState<ThemeBackgroundOption>(
     storedSettings?.backgroundTone ?? "black"

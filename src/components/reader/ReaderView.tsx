@@ -1,227 +1,74 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReaderParagraph from "./ReaderParagraph";
 import type { Paragraph } from "../../types/reader";
-import type {
-  HighlightColorOption,
-  ReaderThemeOption,
-  TextAlignOption,
-  ThemeBackgroundOption,
-} from "../../hooks/useReaderSettings";
+import type { HighlightColorOption, ReaderThemeOption, TextAlignOption, ThemeBackgroundOption } from "../../hooks/useReaderSettings";
 
 type Props = {
-  paragraphs: Paragraph[];
-  currentParagraphIndex: number | null;
-  currentSentenceIndex: number | null;
-  fontSize: number;
-  lineHeight: number;
-  paragraphSpacing: number;
-  maxWidth: number;
-  textAlign: TextAlignOption;
-  theme: ReaderThemeOption;
-  backgroundTone: ThemeBackgroundOption;
-  highlightColor: HighlightColorOption;
-  onParagraphSelect?: (index: number) => void;
+  paragraphs: Paragraph[]; currentParagraphIndex: number | null; currentSentenceIndex: number | null;
+  fontSize: number; lineHeight: number; paragraphSpacing: number; maxWidth: number; textAlign: TextAlignOption;
+  theme: ReaderThemeOption; backgroundTone: ThemeBackgroundOption; highlightColor: HighlightColorOption;
+  readingIndex: number; followSpeech: boolean; isFinished: boolean; onParagraphSelect?: (index: number) => void; onReadingIndexChange: (index: number) => void; onMarkFinished: () => void;
 };
+const colorMap: Record<HighlightColorOption, [string, string]> = {
+  green: ["#6b8468", "#dce8cf"], blue: ["#637c99", "#dce8f3"], purple: ["#89739a", "#eee4f4"],
+  orange: ["#a66e48", "#f3e4d5"], pink: ["#ad7489", "#f6e5ec"], gray: ["#777c7e", "#e7e8e6"],
+};
+const WINDOW_SIZE = 180;
 
-function getReaderSurfaceStyles(
-  theme: ReaderThemeOption,
-  backgroundTone: ThemeBackgroundOption
-) {
-  if (theme === "light") {
-    return {
-      readerBackground: "#ffffff",
-      textColor: "#111111",
-      borderColor: "#dddddd",
-    };
-  }
-
-  switch (backgroundTone) {
-    case "gray":
-      return {
-        readerBackground: "#2a2a2a",
-        textColor: "#f5f5f5",
-        borderColor: "#3a3a3a",
-      };
-    case "darkblue":
-      return {
-        readerBackground: "#172554",
-        textColor: "#e5edff",
-        borderColor: "#243b74",
-      };
-    case "darkgreen":
-      return {
-        readerBackground: "#0f2a1f",
-        textColor: "#e9fff4",
-        borderColor: "#1d4533",
-      };
-    case "darkbrown":
-      return {
-        readerBackground: "#2c2119",
-        textColor: "#fff5eb",
-        borderColor: "#4a3628",
-      };
-    case "darkpurple":
-      return {
-        readerBackground: "#2a183b",
-        textColor: "#f5ebff",
-        borderColor: "#493060",
-      };
-    case "black":
-    default:
-      return {
-        readerBackground: "#0a0a0a",
-        textColor: "#f5f5f5",
-        borderColor: "#222222",
-      };
-  }
-}
-
-function getHighlightStyles(color: HighlightColorOption) {
-  switch (color) {
-    case "blue":
-      return {
-        activeUnitBorderColor: "#60a5fa",
-        activeUnitHighlightColor: "#93c5fd",
-      };
-    case "purple":
-      return {
-        activeUnitBorderColor: "#a78bfa",
-        activeUnitHighlightColor: "#c4b5fd",
-      };
-    case "orange":
-      return {
-        activeUnitBorderColor: "#fb923c",
-        activeUnitHighlightColor: "#fdba74",
-      };
-    case "pink":
-      return {
-        activeUnitBorderColor: "#f472b6",
-        activeUnitHighlightColor: "#f9a8d4",
-      };
-    case "gray":
-      return {
-        activeUnitBorderColor: "#94a3b8",
-        activeUnitHighlightColor: "#cbd5e1",
-      };
-    case "green":
-    default:
-      return {
-        activeUnitBorderColor: "#4ade80",
-        activeUnitHighlightColor: "#86efac",
-      };
-  }
-}
-
-export default function ReaderView({
-  paragraphs,
-  currentParagraphIndex,
-  currentSentenceIndex,
-  fontSize,
-  lineHeight,
-  paragraphSpacing,
-  maxWidth,
-  textAlign,
-  theme,
-  backgroundTone,
-  highlightColor,
-  onParagraphSelect,
-}: Props) {
-  const paragraphRefs = useRef<(HTMLParagraphElement | null)[]>([]);
-  const sentenceRefs = useRef<Record<string, HTMLSpanElement | null>>({});
-
-  const surfaceStyles = getReaderSurfaceStyles(theme, backgroundTone);
-  const highlightStyles = getHighlightStyles(highlightColor);
+export default function ReaderView({ paragraphs, currentParagraphIndex, currentSentenceIndex, fontSize, lineHeight, paragraphSpacing, maxWidth, textAlign, theme, highlightColor, readingIndex, followSpeech, isFinished, onParagraphSelect, onReadingIndexChange, onMarkFinished }: Props) {
+  const [start, setStart] = useState(() => Math.max(0, readingIndex - 40));
+  const callback = useRef(onReadingIndexChange);
+  useEffect(() => { callback.current = onReadingIndexChange; }, [onReadingIndexChange]);
+  const end = Math.min(paragraphs.length, start + WINDOW_SIZE);
+  const colors = theme === "dark" ? ["#f0be45", "#514423"] : colorMap[highlightColor];
 
   useEffect(() => {
-    if (currentParagraphIndex === null) {
-      return;
+    if (currentParagraphIndex === null) return;
+    if (currentParagraphIndex < start || currentParagraphIndex >= end) {
+      const frame = requestAnimationFrame(() => setStart(Math.max(0, currentParagraphIndex - 40)));
+      return () => cancelAnimationFrame(frame);
     }
-
-    const hasActiveSentence = currentSentenceIndex !== null;
-    const sentenceKey = hasActiveSentence
-      ? `${currentParagraphIndex}-${currentSentenceIndex}`
-      : null;
-
-    const activeSentence = sentenceKey
-      ? sentenceRefs.current[sentenceKey]
-      : null;
-
-    if (activeSentence) {
-      const rect = activeSentence.getBoundingClientRect();
-      const absoluteTop = window.scrollY + rect.top;
-
-      const targetTop = Math.max(0, absoluteTop - window.innerHeight * 0.3);
-
-      window.scrollTo({
-        top: targetTop,
-        behavior: "smooth",
+  }, [currentParagraphIndex, start, end]);
+  useEffect(() => {
+    if (!followSpeech || currentParagraphIndex === null) return;
+    const target = document.getElementById(`paragraph-${currentParagraphIndex}`);
+    if (!target) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({ block: "center", behavior: reduced ? "instant" : "smooth" });
+  }, [currentParagraphIndex, currentSentenceIndex, start, followSpeech]);
+  useEffect(() => {
+    if (readingIndex === 0) return;
+    const frame = requestAnimationFrame(() => document.getElementById(`paragraph-${readingIndex}`)?.scrollIntoView({ block: "start", behavior: "instant" }));
+    return () => cancelAnimationFrame(frame);
+    // Initial restoration only; normal scrolling must not be pulled back.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const nodes = document.querySelectorAll<HTMLElement>("[data-paragraph-index]");
+        let visible: number | null = null;
+        for (const node of nodes) {
+          if (node.getBoundingClientRect().bottom > 112) { visible = Number(node.dataset.paragraphIndex); break; }
+        }
+        if (visible !== null) callback.current(visible);
       });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => { window.removeEventListener("scroll", onScroll); cancelAnimationFrame(frame); };
+  }, [start, end, paragraphs.length]);
 
-      return;
-    }
-
-    const activeParagraph = paragraphRefs.current[currentParagraphIndex];
-
-    if (activeParagraph) {
-      const rect = activeParagraph.getBoundingClientRect();
-      const absoluteTop = window.scrollY + rect.top;
-
-      const targetTop = Math.max(0, absoluteTop - window.innerHeight * 0.3);
-
-      window.scrollTo({
-        top: targetTop,
-        behavior: "smooth",
-      });
-    }
-  }, [currentParagraphIndex, currentSentenceIndex]);
-
-  return (
-    <div
-      style={{
-        maxWidth: `${maxWidth}px`,
-        margin: "0 auto",
-        fontSize: `${fontSize}px`,
-        lineHeight,
-        textAlign,
-        backgroundColor: surfaceStyles.readerBackground,
-        color: surfaceStyles.textColor,
-        border: `1px solid ${surfaceStyles.borderColor}`,
-        borderRadius: "12px",
-        padding: "20px",
-        minHeight: "300px",
-      }}
-    >
-      {paragraphs.map((paragraph, paragraphIndex) => (
-        <div
-          key={paragraph.id}
-          style={{ marginBottom: `${paragraphSpacing}px` }}
-        >
-          <ReaderParagraph
-            ref={(element) => {
-              paragraphRefs.current[paragraphIndex] = element;
-            }}
-            paragraph={paragraph}
-            isActive={currentParagraphIndex === paragraphIndex}
-            activeSentenceIndex={
-              currentParagraphIndex === paragraphIndex
-                ? currentSentenceIndex
-                : null
-            }
-            activeUnitBorderColor={highlightStyles.activeUnitBorderColor}
-            activeUnitHighlightColor={highlightStyles.activeUnitHighlightColor}
-            textColor={surfaceStyles.textColor}
-            onClick={
-              onParagraphSelect
-                ? () => onParagraphSelect(paragraphIndex)
-                : undefined
-            }
-            registerSentenceRef={(sentenceIndex, element) => {
-              sentenceRefs.current[`${paragraphIndex}-${sentenceIndex}`] =
-                element;
-            }}
-          />
-        </div>
-      ))}
-    </div>
-  );
+  return <article className="reading-surface" style={{ maxWidth: `${maxWidth}px`, fontSize: `${fontSize}px`, lineHeight, textAlign, marginInline: "auto", ["--paragraph-space" as string]: `${paragraphSpacing}px`, ["--highlight-bg" as string]: colors[1], ["--highlight-border" as string]: colors[0] }} aria-label="Book text">
+    {start > 0 ? <button className="page-window-button" onClick={() => setStart(Math.max(0, start - WINDOW_SIZE))}>Show earlier paragraphs</button> : null}
+    {paragraphs.slice(start, end).map((paragraph, offset) => {
+      const index = start + offset;
+      return <div id={`paragraph-${index}`} data-paragraph-index={index} key={paragraph.id} className={/^(chapter|part|prologue|epilogue)\b|^第.{1,12}章/i.test(paragraph.text.trim()) && paragraph.text.length < 110 ? "chapter-paragraph" : undefined}>
+        <ReaderParagraph paragraph={paragraph} isActive={currentParagraphIndex === index} activeSentenceIndex={currentParagraphIndex === index ? currentSentenceIndex : null} activeUnitBorderColor={colors[0]} activeUnitHighlightColor={colors[1]} textColor="inherit" onClick={onParagraphSelect ? () => onParagraphSelect(index) : undefined}/>
+      </div>;
+    })}
+    {end < paragraphs.length ? <button className="page-window-button" onClick={() => setStart(Math.min(paragraphs.length - WINDOW_SIZE, start + WINDOW_SIZE))}>Continue reading <span aria-hidden="true">→</span></button> : <div className="end-mark">{isFinished ? <span className="finished-label">Finished</span> : <button className="finish-button" onClick={onMarkFinished}>Mark this file finished</button>}</div>}
+  </article>;
 }

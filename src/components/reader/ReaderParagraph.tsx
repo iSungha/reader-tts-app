@@ -35,15 +35,13 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
       <p
         ref={ref}
         onClick={onClick}
+        onKeyDown={onClick ? (event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick(); } } : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        role={onClick ? "button" : undefined}
+        aria-label={onClick ? `Listen from: ${paragraph.text.slice(0, 80)}` : undefined}
+        className="reader-paragraph"
         style={{
-          padding: "10px 0",
-          borderRadius: "10px",
-          border: "none",
-          backgroundColor: "transparent",
-          marginBottom: "16px",
-          lineHeight: 1.7,
           color: textColor,
-          cursor: onClick ? "pointer" : "default",
           whiteSpace: "pre-wrap",
         }}
       >
@@ -77,11 +75,9 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
                   backgroundColor: isActiveUnit
                     ? activeUnitHighlightColor
                     : "transparent",
-                  border: isActiveUnit
-                    ? `2px solid ${activeUnitBorderColor}`
-                    : "2px solid transparent",
+                  borderBottom: isActiveUnit ? `2px solid ${activeUnitBorderColor}` : "2px solid transparent",
                   borderRadius: "6px",
-                  padding: isActiveUnit ? "2px 6px" : "2px 0",
+                  padding: "2px 0",
                   transition:
                     "background-color 0.2s ease, border-color 0.2s ease",
                   whiteSpace: "pre-wrap",
@@ -100,11 +96,9 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
                 backgroundColor: isActiveUnit
                   ? activeUnitHighlightColor
                   : "transparent",
-                border: isActiveUnit
-                  ? `2px solid ${activeUnitBorderColor}`
-                  : "2px solid transparent",
+                borderBottom: isActiveUnit ? `2px solid ${activeUnitBorderColor}` : "2px solid transparent",
                 borderRadius: "6px",
-                padding: isActiveUnit ? "2px 6px" : "2px 0",
+                padding: "2px 0",
                 transition:
                   "background-color 0.2s ease, border-color 0.2s ease",
                 whiteSpace: "pre-wrap",

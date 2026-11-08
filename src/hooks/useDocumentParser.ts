@@ -1,6 +1,4 @@
 import { useState } from "react";
-import { parseDocxFile } from "../lib/parsers/parseDocx";
-import { parsePdfFile } from "../lib/parsers/parsePdf";
 import { parseTextFile } from "../lib/parsers/parseText";
 import type { ParsedDocument } from "../types/document";
 
@@ -22,8 +20,10 @@ export function useDocumentParser() {
       if (extension === "txt") {
         result = await parseTextFile(file);
       } else if (extension === "docx") {
+        const { parseDocxFile } = await import("../lib/parsers/parseDocx");
         result = await parseDocxFile(file);
       } else if (extension === "pdf") {
+        const { parsePdfFile } = await import("../lib/parsers/parsePdf");
         result = await parsePdfFile(file);
       } else {
         throw new Error(

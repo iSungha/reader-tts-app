@@ -206,7 +206,7 @@ function cleanArtifactText(text: string): string {
   return text
     .replace(/\r\n?/g, "\n")
     .replace(/\\1/g, "")
-    .replace(/\u0001/g, "")
+    .replace(new RegExp(String.fromCharCode(1), "g"), "")
     .replace(/[ \t\f\v]+/g, " ");
 }
 
