@@ -6,6 +6,14 @@ Folio is a mobile-first reader that turns your own documents and pasted passages
 
 **[Open the live app](https://reader-tts-app.vercel.app/)** · **[View the source](https://github.com/iSungha/reader-tts-app)**
 
+## Screenshots
+
+![Folio landing page with the listening preview](docs/screenshots/folio-home-desktop.jpg)
+
+| Mobile home | Reader with sample text | Expanded sample player |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/folio-home-mobile.jpg" alt="Folio mobile landing page" width="230"> | <img src="docs/screenshots/folio-reader-mobile.jpg" alt="Mobile reader showing a sample passage" width="230"> | <img src="docs/screenshots/folio-sample-player-mobile.jpg" alt="Sample voice and speed controls" width="230"> |
+
 ## The experience
 
 | | |
