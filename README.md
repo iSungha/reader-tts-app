@@ -2,6 +2,8 @@
 
 A mobile-first, browser-local reading and text-to-speech app built with React, TypeScript, and Vite.
 
+The interface uses one dark color scheme inspired by Qumely. Reading appearance controls adjust text size, line spacing, and reading width.
+
 ## Run locally
 
 ```bash
@@ -13,11 +15,14 @@ Use `npm run build` and `npm run lint` for the existing project checks.
 
 ## Library and playback
 
+- Home is a landing page with a quick-listen flow for one standalone file or pasted passage. Quick listens are saved in the browser but kept separate from book folders.
+- Library contains book folders and their files. The bottom navigation has Home and Library tabs.
 - Add TXT, PDF, and DOCX files, or paste text. Original files and extracted text are saved in IndexedDB.
 - A SHA-256 content hash identifies each file, so adding identical content opens the saved copy.
 - Each file keeps its own reading paragraph, listening sentence, voice, speed, completion, and last-opened time.
 - Create book folders for related files. A folder's completion is weighted by the readable text length of all its files. Files can be moved between folders without losing their progress.
 - File completion uses the furthest readable character reached while reading or listening, rather than counting paragraphs equally.
+- Playback speed includes 1.2× alongside the other speed choices.
 - Renaming and deletion affect only the selected book. Deletion asks for confirmation.
 - Reading appearance is stored as a lightweight browser preference. Existing paragraph bookmarks from the previous version are imported when the same content is added again.
 - The reader renders a bounded paragraph window for large novels; use the earlier/continue controls to move through it.

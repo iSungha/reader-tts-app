@@ -5,21 +5,6 @@ import {
 } from "../lib/storage/readerSettingsStorage";
 
 export type TextAlignOption = "left" | "center" | "right" | "justify";
-export type ReaderThemeOption = "light" | "dark" | "sepia";
-export type ThemeBackgroundOption =
-  | "black"
-  | "gray"
-  | "darkblue"
-  | "darkgreen"
-  | "darkbrown"
-  | "darkpurple";
-export type HighlightColorOption =
-  | "green"
-  | "blue"
-  | "purple"
-  | "orange"
-  | "pink"
-  | "gray";
 
 export function useReaderSettings() {
   const storedSettings = loadReaderSettings();
@@ -33,16 +18,6 @@ export function useReaderSettings() {
   const [textAlign, setTextAlign] = useState<TextAlignOption>(
     storedSettings?.textAlign ?? "left"
   );
-  const [theme, setTheme] = useState<ReaderThemeOption>(
-    storedSettings?.theme ?? "dark"
-  );
-  const [backgroundTone, setBackgroundTone] = useState<ThemeBackgroundOption>(
-    storedSettings?.backgroundTone ?? "black"
-  );
-  const [highlightColor, setHighlightColor] = useState<HighlightColorOption>(
-    storedSettings?.highlightColor ?? "green"
-  );
-
   useEffect(() => {
     saveReaderSettings({
       fontSize,
@@ -50,9 +25,6 @@ export function useReaderSettings() {
       paragraphSpacing,
       maxWidth,
       textAlign,
-      theme,
-      backgroundTone,
-      highlightColor,
     });
   }, [
     fontSize,
@@ -60,9 +32,6 @@ export function useReaderSettings() {
     paragraphSpacing,
     maxWidth,
     textAlign,
-    theme,
-    backgroundTone,
-    highlightColor,
   ]);
 
   return {
@@ -76,11 +45,5 @@ export function useReaderSettings() {
     setMaxWidth,
     textAlign,
     setTextAlign,
-    theme,
-    setTheme,
-    backgroundTone,
-    setBackgroundTone,
-    highlightColor,
-    setHighlightColor,
   };
 }

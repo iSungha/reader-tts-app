@@ -1,26 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import ReaderParagraph from "./ReaderParagraph";
 import type { Paragraph } from "../../types/reader";
-import type { HighlightColorOption, ReaderThemeOption, TextAlignOption, ThemeBackgroundOption } from "../../hooks/useReaderSettings";
+import type { TextAlignOption } from "../../hooks/useReaderSettings";
 
 type Props = {
   paragraphs: Paragraph[]; currentParagraphIndex: number | null; currentSentenceIndex: number | null;
   fontSize: number; lineHeight: number; paragraphSpacing: number; maxWidth: number; textAlign: TextAlignOption;
-  theme: ReaderThemeOption; backgroundTone: ThemeBackgroundOption; highlightColor: HighlightColorOption;
-  readingIndex: number; followSpeech: boolean; isFinished: boolean; onParagraphSelect?: (index: number) => void; onReadingIndexChange: (index: number) => void; onMarkFinished: () => void;
-};
-const colorMap: Record<HighlightColorOption, [string, string]> = {
-  green: ["#6b8468", "#dce8cf"], blue: ["#637c99", "#dce8f3"], purple: ["#89739a", "#eee4f4"],
-  orange: ["#a66e48", "#f3e4d5"], pink: ["#ad7489", "#f6e5ec"], gray: ["#777c7e", "#e7e8e6"],
+  readingIndex: number; followSpeech: boolean; isFinished: boolean; isQuickListen: boolean; onParagraphSelect?: (index: number) => void; onReadingIndexChange: (index: number) => void; onMarkFinished: () => void;
 };
 const WINDOW_SIZE = 180;
+const colors = ["#e7b992", "#594031"] as const;
 
-export default function ReaderView({ paragraphs, currentParagraphIndex, currentSentenceIndex, fontSize, lineHeight, paragraphSpacing, maxWidth, textAlign, theme, highlightColor, readingIndex, followSpeech, isFinished, onParagraphSelect, onReadingIndexChange, onMarkFinished }: Props) {
+export default function ReaderView({ paragraphs, currentParagraphIndex, currentSentenceIndex, fontSize, lineHeight, paragraphSpacing, maxWidth, textAlign, readingIndex, followSpeech, isFinished, isQuickListen, onParagraphSelect, onReadingIndexChange, onMarkFinished }: Props) {
   const [start, setStart] = useState(() => Math.max(0, readingIndex - 40));
   const callback = useRef(onReadingIndexChange);
   useEffect(() => { callback.current = onReadingIndexChange; }, [onReadingIndexChange]);
   const end = Math.min(paragraphs.length, start + WINDOW_SIZE);
-  const colors = theme === "dark" ? ["#f0be45", "#514423"] : colorMap[highlightColor];
 
   useEffect(() => {
     if (currentParagraphIndex === null) return;
@@ -65,7 +60,7 @@ export default function ReaderView({ paragraphs, currentParagraphIndex, currentS
     {start > 0 ? <button className="page-window-button" onClick={() => setStart(Math.max(0, start - WINDOW_SIZE))}>Show earlier paragraphs</button> : null}
     {paragraphs.slice(start, end).map((paragraph, offset) => {
       const index = start + offset;
-      return <div id={`paragraph-${index}`} data-paragraph-index={index} key={paragraph.id} className={/^(chapter|part|prologue|epilogue)\b|^第.{1,12}章/i.test(paragraph.text.trim()) && paragraph.text.length < 110 ? "chapter-paragraph" : undefined}>
+      return <div id={`paragraph-${index}`} data-paragraph-index={index} key={paragraph.id} className={!isQuickListen && /^(chapter|part|prologue|epilogue)\b|^第.{1,12}章/i.test(paragraph.text.trim()) && paragraph.text.length < 110 ? "chapter-paragraph" : undefined}>
         <ReaderParagraph paragraph={paragraph} isActive={currentParagraphIndex === index} activeSentenceIndex={currentParagraphIndex === index ? currentSentenceIndex : null} activeUnitBorderColor={colors[0]} activeUnitHighlightColor={colors[1]} textColor="inherit" onClick={onParagraphSelect ? () => onParagraphSelect(index) : undefined}/>
       </div>;
     })}

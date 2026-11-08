@@ -1,9 +1,4 @@
-import type {
-  HighlightColorOption,
-  ReaderThemeOption,
-  TextAlignOption,
-  ThemeBackgroundOption,
-} from "../../hooks/useReaderSettings";
+import type { TextAlignOption } from "../../hooks/useReaderSettings";
 
 export type StoredReaderSettings = {
   fontSize: number;
@@ -11,9 +6,6 @@ export type StoredReaderSettings = {
   paragraphSpacing: number;
   maxWidth: number;
   textAlign: TextAlignOption;
-  theme: ReaderThemeOption;
-  backgroundTone: ThemeBackgroundOption;
-  highlightColor: HighlightColorOption;
 };
 
 const READER_SETTINGS_KEY = "reader-tts-settings";
@@ -33,10 +25,7 @@ export function loadReaderSettings(): StoredReaderSettings | null {
       typeof parsed.lineHeight !== "number" ||
       typeof parsed.paragraphSpacing !== "number" ||
       typeof parsed.maxWidth !== "number" ||
-      !isValidTextAlign(parsed.textAlign) ||
-      !isValidTheme(parsed.theme) ||
-      !isValidBackgroundTone(parsed.backgroundTone) ||
-      !isValidHighlightColor(parsed.highlightColor)
+      !isValidTextAlign(parsed.textAlign)
     ) {
       return null;
     }
@@ -47,9 +36,6 @@ export function loadReaderSettings(): StoredReaderSettings | null {
       paragraphSpacing: parsed.paragraphSpacing,
       maxWidth: parsed.maxWidth,
       textAlign: parsed.textAlign,
-      theme: parsed.theme,
-      backgroundTone: parsed.backgroundTone,
-      highlightColor: parsed.highlightColor,
     };
   } catch {
     return null;
@@ -70,31 +56,5 @@ function isValidTextAlign(value: unknown): value is TextAlignOption {
     value === "center" ||
     value === "right" ||
     value === "justify"
-  );
-}
-
-function isValidTheme(value: unknown): value is ReaderThemeOption {
-  return value === "light" || value === "dark" || value === "sepia";
-}
-
-function isValidBackgroundTone(value: unknown): value is ThemeBackgroundOption {
-  return (
-    value === "black" ||
-    value === "gray" ||
-    value === "darkblue" ||
-    value === "darkgreen" ||
-    value === "darkbrown" ||
-    value === "darkpurple"
-  );
-}
-
-function isValidHighlightColor(value: unknown): value is HighlightColorOption {
-  return (
-    value === "green" ||
-    value === "blue" ||
-    value === "purple" ||
-    value === "orange" ||
-    value === "pink" ||
-    value === "gray"
   );
 }

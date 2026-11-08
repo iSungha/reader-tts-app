@@ -14,6 +14,7 @@ export type BookProgress = {
 
 export type Book = {
   id: string;
+  kind?: "quick";
   title: string;
   fileName: string;
   source: DocumentSource;
