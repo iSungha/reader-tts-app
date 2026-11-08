@@ -4,6 +4,21 @@ import type { SpeechStatus, VoiceOption } from "../types/tts";
 
 type Props = { paragraphs: Paragraph[]; voices: VoiceOption[]; selectedVoiceId: string; rate: number };
 
+function removeSpokenQuotationMarks(text: string): string {
+  return text.replace(/["“”„‟«»‹›「」『』〝〞〟＂‘’']/gu, (mark, index: number, source: string) => {
+    if (mark === "’" || mark === "'") {
+      const previous = source[index - 1] ?? "";
+      const next = source[index + 1] ?? "";
+      const isWordCharacter = (character: string) => /[\p{L}\p{N}]/u.test(character);
+
+      // Keep apostrophes in contractions and possessives, but drop quote marks.
+      return isWordCharacter(previous) && isWordCharacter(next) ? mark : "";
+    }
+
+    return "";
+  }).trim();
+}
+
 export function useSpeechSynthesis({ paragraphs, voices, selectedVoiceId, rate }: Props) {
   const [status, setStatus] = useState<SpeechStatus>("idle");
   const [currentParagraphIndex, setCurrentParagraphIndex] = useState<number | null>(null);
@@ -29,10 +44,16 @@ export function useSpeechSynthesis({ paragraphs, voices, selectedVoiceId, rate }
     if (paragraphIndex >= items.length) { active.current = false; setPlaybackStatus("idle"); setCompletionTick(value => value + 1); return; }
     const units = items[paragraphIndex].sentences.filter(Boolean);
     if (!units.length || sentenceIndex >= units.length) { playUnit(paragraphIndex + 1, 0, token); return; }
+    const spokenText = removeSpokenQuotationMarks(units[sentenceIndex]);
+    if (!spokenText) {
+      if (sentenceIndex + 1 < units.length) playUnit(paragraphIndex, sentenceIndex + 1, token);
+      else playUnit(paragraphIndex + 1, 0, token);
+      return;
+    }
     cursor.current = { paragraph: paragraphIndex, sentence: sentenceIndex };
     setCurrentParagraphIndex(paragraphIndex);
     setCurrentSentenceIndex(sentenceIndex);
-    const utterance = new SpeechSynthesisUtterance(units[sentenceIndex]);
+    const utterance = new SpeechSynthesisUtterance(spokenText);
     const voice = available.find(item => item.id === voiceId)?.voice;
     if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
     utterance.rate = speed;
