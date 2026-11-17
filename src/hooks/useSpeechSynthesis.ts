@@ -1,100 +1,142 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { nextSpeechChunk } from "../lib/speech/nextSpeechChunk";
 import type { Paragraph } from "../types/reader";
 import type { SpeechStatus, VoiceOption } from "../types/tts";
 
-type Props = { paragraphs: Paragraph[]; voices: VoiceOption[]; selectedVoiceId: string; rate: number };
+type Props = { paragraphs: Paragraph[]; voices: VoiceOption[]; selectedVoiceId: string; rate: number; joinPdfLines: boolean };
+type SpeechAttempt = {
+  utterance: SpeechSynthesisUtterance;
+  timeoutMs: number;
+  onTimeout: () => void;
+};
 
-function removeSpokenQuotationMarks(text: string): string {
-  return text.replace(/["“”„‟«»‹›「」『』〝〞〟＂‘’']/gu, (mark, index: number, source: string) => {
-    if (mark === "’" || mark === "'") {
-      const previous = source[index - 1] ?? "";
-      const next = source[index + 1] ?? "";
-      const isWordCharacter = (character: string) => /[\p{L}\p{N}]/u.test(character);
-
-      // Keep apostrophes in contractions and possessives, but drop quote marks.
-      return isWordCharacter(previous) && isWordCharacter(next) ? mark : "";
-    }
-
-    return "";
-  }).trim();
-}
-
-export function useSpeechSynthesis({ paragraphs, voices, selectedVoiceId, rate }: Props) {
+export function useSpeechSynthesis({ paragraphs, voices, selectedVoiceId, rate, joinPdfLines }: Props) {
   const [status, setStatus] = useState<SpeechStatus>("idle");
   const [currentParagraphIndex, setCurrentParagraphIndex] = useState<number | null>(null);
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState<number | null>(null);
+  const [currentSentenceEndIndex, setCurrentSentenceEndIndex] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [completionTick, setCompletionTick] = useState(0);
   const cursor = useRef({ paragraph: 0, sentence: 0 });
-  const generation = useRef(0);
-  const active = useRef(false);
+  const attempt = useRef<SpeechAttempt | null>(null);
+  const timeout = useRef<number | undefined>(undefined);
   const statusRef = useRef<SpeechStatus>("idle");
-  const options = useRef({ paragraphs, voices, selectedVoiceId, rate });
-  options.current = { paragraphs, voices, selectedVoiceId, rate };
+  const options = useRef({ paragraphs, voices, selectedVoiceId, rate, joinPdfLines });
+  options.current = { paragraphs, voices, selectedVoiceId, rate, joinPdfLines };
 
   const setPlaybackStatus = (next: SpeechStatus) => { statusRef.current = next; setStatus(next); };
-  const cancel = () => {
-    generation.current += 1;
-    active.current = false;
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-  };
-  const playUnit = (paragraphIndex: number, sentenceIndex: number, token: number) => {
-    if (token !== generation.current) return;
-    const { paragraphs: items, voices: available, selectedVoiceId: voiceId, rate: speed } = options.current;
-    if (paragraphIndex >= items.length) { active.current = false; setPlaybackStatus("idle"); setCompletionTick(value => value + 1); return; }
-    const units = items[paragraphIndex].sentences.filter(Boolean);
-    if (!units.length || sentenceIndex >= units.length) { playUnit(paragraphIndex + 1, 0, token); return; }
-    const spokenText = removeSpokenQuotationMarks(units[sentenceIndex]);
-    if (!spokenText) {
-      if (sentenceIndex + 1 < units.length) playUnit(paragraphIndex, sentenceIndex + 1, token);
-      else playUnit(paragraphIndex + 1, 0, token);
+  const clearWatchdog = useCallback(() => {
+    window.clearTimeout(timeout.current);
+    timeout.current = undefined;
+  }, []);
+  const watchSpeech = useCallback(() => {
+    clearWatchdog();
+    const current = attempt.current;
+    // Background tabs can be suspended by the OS. Start a fresh timer when visible.
+    if (!current || statusRef.current !== "speaking" || document.hidden) return;
+    timeout.current = window.setTimeout(() => {
+      if (attempt.current === current && statusRef.current === "speaking" && !document.hidden) current.onTimeout();
+    }, current.timeoutMs);
+  }, [clearWatchdog]);
+  const cancel = useCallback(() => {
+    clearWatchdog();
+    attempt.current = null;
+    window.speechSynthesis?.cancel();
+  }, [clearWatchdog]);
+
+  const playUnit = (fromParagraph: number, fromSentence: number) => {
+    const { paragraphs: items, voices: available, selectedVoiceId: voiceId, rate: speed, joinPdfLines: joinLines } = options.current;
+    for (let paragraphIndex = fromParagraph; paragraphIndex < items.length; paragraphIndex += 1) {
+      const paragraph = items[paragraphIndex];
+      const chunk = nextSpeechChunk(paragraph.sentences, paragraphIndex === fromParagraph ? fromSentence : 0, joinLines && paragraph.text.includes("\n"));
+      if (!chunk) continue;
+
+      cursor.current = { paragraph: paragraphIndex, sentence: chunk.start };
+      setCurrentParagraphIndex(paragraphIndex);
+      setCurrentSentenceIndex(chunk.start);
+      setCurrentSentenceEndIndex(chunk.end);
+
+      const utterance = new SpeechSynthesisUtterance(chunk.text);
+      const voice = available.find(item => item.id === voiceId)?.voice;
+      if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
+      utterance.rate = speed;
+
+      function fail(message: string) {
+        if (attempt.current?.utterance !== utterance) return;
+        cancel();
+        setPlaybackStatus("idle");
+        setError(message);
+      }
+
+      attempt.current = {
+        utterance,
+        timeoutMs: 12_000,
+        onTimeout: () => fail("Speech stopped responding. Tap Play to try again from here."),
+      };
+      utterance.onstart = () => {
+        const current = attempt.current;
+        if (current?.utterance !== utterance) return;
+        // Give slow voices time to finish, including voices without boundary events.
+        current.timeoutMs = Math.max(15_000, 8000 + 140 * chunk.text.length / speed);
+        watchSpeech();
+      };
+      utterance.onend = () => {
+        if (attempt.current?.utterance !== utterance) return;
+        attempt.current = null;
+        clearWatchdog();
+        playUnit(paragraphIndex, chunk.end + 1);
+      };
+      utterance.onerror = event => fail(event.error === "interrupted" || event.error === "canceled"
+        ? "Speech was interrupted. Tap Play to continue from here."
+        : "Speech stopped. Tap Play to try again or select another browser voice.");
+
+      watchSpeech();
+      try {
+        window.speechSynthesis.speak(utterance);
+      } catch {
+        fail("Speech could not start. Tap Play to try again or select another browser voice.");
+      }
       return;
     }
-    cursor.current = { paragraph: paragraphIndex, sentence: sentenceIndex };
-    setCurrentParagraphIndex(paragraphIndex);
-    setCurrentSentenceIndex(sentenceIndex);
-    const utterance = new SpeechSynthesisUtterance(spokenText);
-    const voice = available.find(item => item.id === voiceId)?.voice;
-    if (voice) { utterance.voice = voice; utterance.lang = voice.lang; }
-    utterance.rate = speed;
-    utterance.onstart = () => { if (token === generation.current) setPlaybackStatus("speaking"); };
-    utterance.onend = () => {
-      if (token !== generation.current || !active.current) return;
-      if (sentenceIndex + 1 < units.length) playUnit(paragraphIndex, sentenceIndex + 1, token);
-      else playUnit(paragraphIndex + 1, 0, token);
-    };
-    utterance.onerror = event => {
-      if (token !== generation.current) return;
-      if (event.error === "interrupted" || event.error === "canceled") return;
-      active.current = false; setPlaybackStatus("idle");
-      setError("Speech stopped. Try Play again or select another browser voice.");
-    };
-    window.speechSynthesis.speak(utterance);
+
+    setPlaybackStatus("idle");
+    setCompletionTick(value => value + 1);
   };
   const playFromPosition = (paragraphIndex: number, sentenceIndex = 0) => {
-    if (!("speechSynthesis" in window)) { setError("Speech is unavailable in this browser."); return; }
+    if (!window.speechSynthesis || typeof SpeechSynthesisUtterance === "undefined") {
+      setError("Speech is unavailable in this browser.");
+      return;
+    }
     const items = options.current.paragraphs;
     if (paragraphIndex < 0 || paragraphIndex >= items.length) return;
-    cancel(); setError(""); active.current = true;
+    cancel();
+    setError("");
+    setPlaybackStatus("speaking");
     const safeSentence = Math.max(0, Math.min(sentenceIndex, Math.max(0, items[paragraphIndex].sentences.length - 1)));
-    playUnit(paragraphIndex, safeSentence, generation.current);
+    playUnit(paragraphIndex, safeSentence);
   };
   const playFromParagraph = (index: number) => playFromPosition(index, 0);
   const speak = () => {
     if (statusRef.current === "paused" && "speechSynthesis" in window) {
-      window.speechSynthesis.resume(); setPlaybackStatus("speaking"); return;
+      setPlaybackStatus("speaking");
+      window.speechSynthesis.resume();
+      watchSpeech();
+      return;
     }
     playFromPosition(cursor.current.paragraph, cursor.current.sentence);
   };
   const pause = () => {
     if (statusRef.current === "speaking" && "speechSynthesis" in window) {
-      window.speechSynthesis.pause(); setPlaybackStatus("paused");
+      setPlaybackStatus("paused");
+      clearWatchdog();
+      window.speechSynthesis.pause();
     }
   };
   const stop = () => { cancel(); setPlaybackStatus("idle"); };
   const restorePosition = (paragraphIndex: number, sentenceIndex = 0) => {
     stop(); cursor.current = { paragraph: paragraphIndex, sentence: sentenceIndex };
     setCurrentParagraphIndex(paragraphIndex); setCurrentSentenceIndex(sentenceIndex);
+    setCurrentSentenceEndIndex(sentenceIndex);
   };
   const goToPreviousParagraph = () => playFromParagraph(Math.max(0, cursor.current.paragraph - 1));
   const goToNextParagraph = () => playFromParagraph(Math.min(options.current.paragraphs.length - 1, cursor.current.paragraph + 1));
@@ -102,7 +144,13 @@ export function useSpeechSynthesis({ paragraphs, voices, selectedVoiceId, rate }
     if (statusRef.current === "speaking") playFromPosition(cursor.current.paragraph, cursor.current.sentence);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedVoiceId, rate]);
-  useEffect(() => () => { generation.current += 1; window.speechSynthesis?.cancel(); }, []);
-  return { status, error, completionTick, currentParagraphIndex, currentSentenceIndex, speak, pause, stop,
+  useEffect(() => {
+    document.addEventListener("visibilitychange", watchSpeech);
+    return () => {
+      document.removeEventListener("visibilitychange", watchSpeech);
+      cancel();
+    };
+  }, [watchSpeech, cancel]);
+  return { status, error, completionTick, currentParagraphIndex, currentSentenceIndex, currentSentenceEndIndex, speak, pause, stop,
     playFromParagraph, playFromPosition, restorePosition, goToPreviousParagraph, goToNextParagraph };
 }

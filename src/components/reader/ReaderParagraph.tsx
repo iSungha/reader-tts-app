@@ -1,10 +1,11 @@
-import { forwardRef } from "react";
+import { forwardRef, memo } from "react";
 import type { Paragraph } from "../../types/reader";
 
 type Props = {
   paragraph: Paragraph;
   isActive: boolean;
   activeSentenceIndex: number | null;
+  activeSentenceEndIndex?: number | null;
   activeUnitBorderColor: string;
   activeUnitHighlightColor: string;
   textColor: string;
@@ -21,6 +22,7 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
       paragraph,
       isActive,
       activeSentenceIndex,
+      activeSentenceEndIndex,
       activeUnitBorderColor,
       activeUnitHighlightColor,
       textColor,
@@ -46,7 +48,8 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
         }}
       >
         {paragraph.renderUnits.map((unit, index) => {
-          const isActiveUnit = isActive && activeSentenceIndex === index;
+          const isActiveUnit = isActive && activeSentenceIndex !== null &&
+            index >= activeSentenceIndex && index <= (activeSentenceEndIndex ?? activeSentenceIndex);
 
           const content = (
             <>
@@ -116,4 +119,4 @@ const ReaderParagraph = forwardRef<HTMLParagraphElement, Props>(
 
 ReaderParagraph.displayName = "ReaderParagraph";
 
-export default ReaderParagraph;
+export default memo(ReaderParagraph);

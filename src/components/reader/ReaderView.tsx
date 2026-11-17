@@ -5,14 +5,14 @@ import type { Paragraph } from "../../types/reader";
 import type { TextAlignOption } from "../../hooks/useReaderSettings";
 
 type Props = {
-  paragraphs: Paragraph[]; currentParagraphIndex: number | null; currentSentenceIndex: number | null;
+  paragraphs: Paragraph[]; currentParagraphIndex: number | null; currentSentenceIndex: number | null; currentSentenceEndIndex: number | null;
   fontSize: number; lineHeight: number; paragraphSpacing: number; maxWidth: number; textAlign: TextAlignOption;
   readingIndex: number; followSpeech: boolean; isFinished: boolean; isQuickListen: boolean; onParagraphSelect?: (index: number) => void; onReadingIndexChange: (index: number) => void; onMarkFinished: () => void;
 };
 const WINDOW_SIZE = 180;
 const colors = ["#e7b992", "#594031"] as const;
 
-export default function ReaderView({ paragraphs, currentParagraphIndex, currentSentenceIndex, fontSize, lineHeight, paragraphSpacing, maxWidth, textAlign, readingIndex, followSpeech, isFinished, isQuickListen, onParagraphSelect, onReadingIndexChange, onMarkFinished }: Props) {
+export default function ReaderView({ paragraphs, currentParagraphIndex, currentSentenceIndex, currentSentenceEndIndex, fontSize, lineHeight, paragraphSpacing, maxWidth, textAlign, readingIndex, followSpeech, isFinished, isQuickListen, onParagraphSelect, onReadingIndexChange, onMarkFinished }: Props) {
   const [start, setStart] = useState(() => Math.max(0, readingIndex - 40));
   const [followPaused, setFollowPaused] = useState(false);
   const scrollIntentUntil = useRef(0);
@@ -90,7 +90,7 @@ export default function ReaderView({ paragraphs, currentParagraphIndex, currentS
     {paragraphs.slice(start, end).map((paragraph, offset) => {
       const index = start + offset;
       return <div id={`paragraph-${index}`} data-paragraph-index={index} key={paragraph.id} className={!isQuickListen && /^(chapter|part|prologue|epilogue)\b|^第.{1,12}章/i.test(paragraph.text.trim()) && paragraph.text.length < 110 ? "chapter-paragraph" : undefined}>
-        <ReaderParagraph paragraph={paragraph} isActive={currentParagraphIndex === index} activeSentenceIndex={currentParagraphIndex === index ? currentSentenceIndex : null} activeUnitBorderColor={colors[0]} activeUnitHighlightColor={colors[1]} textColor="inherit" onClick={onParagraphSelect ? () => onParagraphSelect(index) : undefined}/>
+        <ReaderParagraph paragraph={paragraph} isActive={currentParagraphIndex === index} activeSentenceIndex={currentParagraphIndex === index ? currentSentenceIndex : null} activeSentenceEndIndex={currentParagraphIndex === index ? currentSentenceEndIndex : null} activeUnitBorderColor={colors[0]} activeUnitHighlightColor={colors[1]} textColor="inherit" onClick={onParagraphSelect ? () => onParagraphSelect(index) : undefined}/>
       </div>;
     })}
     {end < paragraphs.length ? <button className="page-window-button" onClick={() => setStart(Math.min(paragraphs.length - WINDOW_SIZE, start + WINDOW_SIZE))}>Continue reading <span aria-hidden="true">→</span></button> : <div className="end-mark">{isFinished ? <span className="finished-label">Finished</span> : <button className="finish-button" onClick={onMarkFinished}>Mark this file finished</button>}</div>}
